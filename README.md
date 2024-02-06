@@ -1,228 +1,122 @@
-# Polygon ID Issuer Node
+# Issuer node docs
 
-[![Checks](https://github.com/0xPolygonID/sh-id-platform/actions/workflows/checks.yml/badge.svg)](https://github.com/0xPolygonID/sh-id-platform/actions/workflows/checks.yml)
-[![golangci-lint](https://github.com/0xPolygonID/sh-id-platform/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/0xPolygonID/sh-id-platform/actions/workflows/golangci-lint.yml)
+## Dependencies
+1. Make command.
+2. Docker (docker desktop running in background).
 
-Streamline the **Verifiable Credentials issuance** process with the user-friendly API and UI of the Issuer Node within the Polygon ID ecosystem. The on-premise (self-hosted) Issuer Node, seamlessly integrated with a robust suite of tools including the mobile Wallet, Schema Builder, and Credential Marketplace, guarantees a frictionless experience for effortlessly issuing and verifying credentials.
+### Clone this repo
+```bash
+git clone https://github.com/LobsterRavioli/issuer_node.git
+```
+### Move to the project folder
+```bash
+cd issuer_node
+```
+### Setup environment variables 
 
-![Triagle-of-trust](docs/assets/img/triangle-of-trust.png)
+1. Make a copy of the following environment variables files:
+```bash
+cp .env-api.sample .env-api;
+cp .env-issuer.sample .env-issuer;
+cp .env-ui.sample .env-ui;
+```
+2. Init environment variable .env-issuer :
+```bash
+ISSUER_SERVER_URL=<LOCAL IP ADDRESS>
+#EXAMPLE ISSUER_SERVER_URL= http://192.168.1.3:3002
+ISSUER_API_AUTH_USER=user-issuer
+ISSUER_API_AUTH_PASSWORD=password-issuer
+ISSUER_ETHEREUM_URL=<YOUR_RPC_PROVIDER_URI_ENDPOINT>
+#EXAMPLE ISSUER_ETHEREUM_URL=https://polygon-mumbai.infura.io/v3/90372d43a2b34c169d5fed6bf77fa349 
+```
+You can take ISSUER_ETHEREUM_URL from rpc providers like infura.
 
-**Features:**
+## How to run the issuer node
+Every time you want the issuer node up, you need to execute sequentially this commands.
 
-* Create Issuer Identities.
-* Issue VCs.
-* Revoke VCs.
-* Fetch VCs.
-* Transit Issuer's state.
-* Create Issuer-User connections.
-* Issuer's UI.
-
----
-
-## Table of Contents
-
-- [Quick Start Installation](#quick-start-installation)
-    - [Prerequisites](#Prerequisites)
-    - [Issuer Node Api](#issuer-node-api)
-    - [Issuer Node UI](#issuer-node-ui)
-- [Quick Start Demo](#quick-start-demo)
-- [Documentation](#documentation)
-- [Tools](#tools)
-- [License](#license)
-
-## Quick Start Installation
-> [!NOTE]
-> The provided installation guide is **non-production** ready. For production deployments please refer to  [Standalone Mode Guide](https://devs.polygonid.com/docs/issuer/setup-issuer-core/).
->
-> There is no compatibility with Windows environments at this time. While using WSL should be ok, it's not officially supported.
-
-### Prerequisites
-
-- Unix-based operating system (e.g. Debian, Arch, Mac OS)
-- [Docker Engine](https://docs.docker.com/engine/) `1.27+`
-- Makefile toolchain `GNU Make 3.81`
-- Publicly accessible URL - The issuer node API must be publicly reachable. Please make sure you properly configure your proxy or use a tool like [Localtunnel](https://theboroer.github.io/localtunnel-www/) for testing purposes.
-- Polygon Mumbai or Main RPC - You can get one in any of the providers of this list
-    - [Chainstack](https://chainstack.com/)
-    - [Ankr](https://ankr.com/)
-    - [QuickNode](https://quicknode.com/)
-    - [Alchemy](https://www.alchemy.com/)
-    - [Infura](https://www.infura.io/)
-
-### Issuer Node API
-
-In this section we will cover the installation of the Issuer Node API.
-
-> [!NOTE]
-> This Quick Installation Guide is prepared for Polygon Mumbai (Testnet) both for the state contract and issuer dids. If you want to deploy the node with Polygon Main configuration, please visit our [advanced Issuer Node configuration guide](https://devs.polygonid.com/docs/issuer/issuer-configuration/)).
-
-
-#### Deploy Issuer Node Infrastructure
-
-1. Copy the config sample files:
-
-    ```bash
-    cp .env-issuer.sample .env-issuer
-    cp .env-api.sample .env-api
-    ```
-
-2. Fill the .env-issuer config file with the proper variables:
-
-   *.env-issuer*
-    ```bash
-    ISSUER_ETHEREUM_URL=<YOUR_RPC_PROVIDER_URI_ENDPOINT>
-    ```
-3. Start the infrastructure:
-
-    ```bash
-    make up
-    ```
-
-4. Enable vault authentication:
-
-    ```bash
-    make add-vault-token
-    ```
-
-5. Write the private key in the vault. This step is needed in order to be able to transit the issuer's state. To perform that action the given account has to be funded. For Mumbai network you can request some testing Matic [here](https://mumbaifaucet.com/).
-
-    ```bash
-    make private_key=<YOUR_WALLET_PRIVATE_KEY> add-private-key
-    ```
-
-----
-**Troubleshooting:**
-
-In order to **stop** and **delete** all the containers.
-
-> [!WARNING]
-> This will permanently delete all data, making it necessary to create an Issuer DID again.
-
-``` bash
-make down
+1. Run this to clear the node.
+```bash
+make clean-vault;
+```
+2. Run this to start the node
+```bash
+make up;
+```
+If you want to shut down the node run this command: 
+```bash
+make down;
 ```
 
-If you experience **problems** with the **vault**, follow these commands:
-
-``` bash
-docker stop issuer-vault-1    // Stops the container issuer-vault-1 
-docker rm issuer-vault-1      // Removes container issuer-vault-1
-make clean-vault              // Removes all the data in the vault, including the token
-make up                       // Starts the database, cache and vault storage (i.e, postgres, redis and vault)
+3.  Run this to create the private key (Repeat this until you get the expected output).
+```bash
+make private_key=<YOUR WALLET PRIVATE KEY> add-private-key;
+# Expected Output:
+#   docker exec issuer-vault-1 \
+#           vault write iden3/import/pbkey key_type=ethereum private_key=<YOUR_WALLET_PRIVATE_KEY>
+#   Success! Data written to: iden3/import/pbkey
 ```
-Wait 20 secs so the vault can boot and generate a token.
+4. Run this to add the private key to the vault.
+```bash
+make add-vault-token;
 
-``` bash
-make add-vault-token                                          // Adds the generated token to the ISSUER_KEY_STORE_TOKEN var in .env-issuer
-make private_key=<YOUR_WALLET_PRIVATE_KEY> add-private-key    // Stores the private key in the vault
 ```
+5. Run this to generate the did of the issuer node.
+```bash
+make generate-issuer-did;
+#OR
+make generate-issuer-did-arm; # for m1/m2 mac users
+```
+6. Run this to start the node-ui.
+```bash
+make run-ui;
+#OR
+make run-ui-arm; # for m1/m2 mac users
+```
+#### Using the UI API
 
-----
-#### Run Issuer Node API
+Make sure to set the HTTP authentication credentials in `.env-api` to the following:
 
-The issuer node is extensively configurable, for a detailed list of the configuration, please visit our [detailed configuration guide](https://devs.polygonid.com/docs/issuer/issuer-configuration/).
-
-1. Fill the .env-issuer config file with the proper variables:
-
-   *.env-issuer*
-    ```bash
-    ISSUER_API_AUTH_USER=user-issuer
-    ISSUER_API_AUTH_PASSWORD=password-issuer
-    ISSUER_SERVER_URL=<PUBLICLY_ACCESSIBLE_URL_POINTING_TO_ISSUER_SERVER_PORT>
-    ```
-
-2. Run api:
-
-    ```bash
-    make run
-    ```
-
-> Core API specification - http://localhost:3001/
-
----
-
-**Troubleshooting:**
-
-Restart the api.
-
-```bash 
-make restart-api
+```bash
+ISSUER_API_UI_AUTH_USER=user-api
+ISSUER_API_UI_AUTH_PASSWORD=password-api
 ```
 
----
+Then authenticate via the following form on <http://YOUR_LOCAL_IP_ADDRESS>
 
-### Issuer Node UI
+![Issuer UI API Authentication](docs/assets/img/3002-auth.png)
 
-In this section we will cover the installation of the Issuer Node UI, before continuing with these steps, make sure that you have followed the [Deploy Issuer Node Infrastructure](#Deploy-Issuer-Node-Infrastructure) section before continuing.
+This allows you to make a request via any of the endpoints using this frontend.
 
-In order to make the UI work, we will need configure some env variables in the `.env-api` file
+![Issuer UI API Get Credentials](docs/assets/img/3002-credentials.png)
 
-1. Copy .env-ui sample file and fill the needed env variables:
+#### (Optional) Using the UI
 
+This service is running on <http://localhost:8088>.
 
-    ```bash 
-    cp .env-ui.sample .env-ui
-    ```
+> **NOTE:** If you are using Chrome, you might get the HTTP auth modal showing and disappearing quickly. To remedy this, use the following URL: <http://user-api:password-api@localhost:8088/>.
 
-    *.env-ui*
-    ```bash
-    ISSUER_UI_AUTH_USERNAME=user-ui
-    ISSUER_UI_AUTH_PASSWORD=password-ui
-    ```
-    
-    *.env-api*
-    ```bash
-    ISSUER_API_UI_SERVER_URL={PUBLICLY_ACCESSIBLE_URL_POINTING_TO_ISSUER_API_UI_SERVER_PORT}
-    ```
+File containing the basic auth credentials: `.env-ui`
 
-2. Generate Issuer DID:
+```bash
+# ...
 
-    ```bash
-    make generate-issuer-did
-    ```
-
-3. Run UI:
-
-    ```bash
-    make run-ui
-    ```
-
-
->**API UI specification** - http://localhost:3002/
-> 
->**UI** - http://localhost:8088/
-
----
-**Troubleshooting:**
-
-Restart the ui:
-
-```bash 
-make restart-ui
+ISSUER_UI_AUTH_USERNAME=user-ui
+ISSUER_UI_AUTH_PASSWORD=password-ui
 ```
+
+![Issuer UI](docs/assets/img/8088.png)
+
+### How to get the QR code for JSON content
+
+Use [qe](https://qr.io/) to generate the QR code (in the "Text" section) and paste the body provided by the UI-API.
+
+### Issue a Credential
+1. In the issuer-UI-API, navigate to the "Create a Credential" section and paste the DID of the wallet holder. (For testing purposes, the issuer-API allows you to define and issue a KYAge credential.)
+2. Copy the ID provided in the response.
+3. Go to the "Get Credential" section and paste the ID.
+4. Visit [qe](https://qr.io/) "Text section" and paste the JSON content.
+5. Proceed to the "Get Connection QR Code" section and copy the JSON content.
+6. Go to [qe](https://qr.io/) "Text section" and paste the JSON content.
+
+Allow the wallet to scan the authentication QR code first and then the issued credential QR code.
 ---
-
-## Quick Start Demo
-
-This [Quick Start Demo](https://devs.polygonid.com/docs/quick-start-demo/) will walk you through the process of **issuing** and **verifying** your **first credential**.
-
-## Documentation
-
-* [Issuer Node resources](https://devs.polygonid.com/docs/category/issuer/)
-* [Polygon ID core concepts](https://devs.polygonid.com/docs/introduction/)
-
-## Tools
-> [!WARNING]
-> **Demo Issuer** and **Verifier Demo** are for **testing** purposes **only**.
-
-
-* [Schema Builder](https://schema-builder.polygonid.me/) - Create your custom schemas to issue VC.
-* [Demo Issuer UI](https://user-ui:password-ui@issuer-ui.polygonid.me/) - Test our Issuer Node UI.
-* [Verifier Demo](https://verifier-demo.polygonid.me/) - Verify your VCs.
-* [Polygon ID Android Mobile App](https://play.google.com/store/apps/details?id=com.polygonid.wallet&hl=en&gl=US)
-* [Polygon ID IOS Mobile App](https://apps.apple.com/us/app/polygon-id/id1629870183)
-* [Marketplace](https://marketplace.polygonid.me/) - Explore credentials submitted by trusted issuers.
-
-## License
-
-See [LICENSE](LICENSE.md).
